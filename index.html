@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quay Số Trúng Thưởng</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+      
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background-image: url("../anh/bia1.png");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 100%;
+        height: 100vh;
+      }
+
+      button {
+        margin: 10px;
+        padding: 10px;
+        font-size: 16px;
+      }
+
+      #toast {
+        visibility: hidden;
+        background-color: black;
+        color: white;
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px;
+        border-radius: 5px;
+      }
+
+      #toast.show {
+        visibility: visible;
+      }
+      h2{
+        color: aliceblue;
+      }
+      h1{
+        color: aliceblue;
+      }
+      #result-giai-nhat{
+        color: aliceblue;
+      }
+      #result-giai-nhi{
+        color: aliceblue;
+      }
+      #result-giai-ba{
+        color: aliceblue;
+      }
+      #result-giai-khuyen-khich{
+        color: aliceblue;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="margin-top: 22%;">
+        <h1>Quay Số Trúng Thưởng</h1>
+
+    <input type="file" id="fileInput" onchange="handleFile(this)" />
+    <p id="guest-number">Số khách mời: 0</p>
+
+    <button onclick="toggleSettingsMenu()">⚙️ Cài đặt giải thưởng</button>
+
+    <div id="settings-menu" style="display: none">
+      <label
+        >Giải Đặc Biệt: <input type="number" id="giai-nhat-count" value="1"
+      /></label>
+      <label
+        >Giải Nhất: <input type="number" id="giai-nhi-count" value="5"
+      /></label>
+      <label
+        >Giải Nhì: <input type="number" id="giai-ba-count" value="10"
+      /></label>
+      <label
+        >Giải Khuyến Khích:
+        <input type="number" id="giai-khuyen-khich-count" value="20"
+      /></label>
+      <button onclick="applySettings()">Lưu</button>
+    </div>
+
+    <button onclick="QuayGiaiNhat()">🎉 Quay Giải Đặc Biệt</button>
+    <button onclick="QuayGiaiNhi()">🎊 Quay Giải Nhất</button>
+    <button onclick="QuayGiaiBa()">🎁 Quay Giải Nhì</button>
+    <button onclick="QuayGiaiKhuyenKhich()">🎈 Quay Giải Khuyến Khích</button>
+
+    <h2>Kết Quả</h2>
+    <div id="result-giai-nhat"></div>
+    <div id="result-giai-nhi"></div>
+    <div id="result-giai-ba"></div>
+    <div id="result-giai-khuyen-khich"></div>
+
+    <div id="toast"></div>
+    </div>
+
+   
+
+    <script>
+
+      // Phần mã pháo hoa
+      window.requestAnimFrame = (function() {
+            return window.requestAnimationFrame ||
+                   window.webkitRequestAnimationFrame ||
+                   window.mozRequestAnimationFrame ||
+                   function(callback) {
+                       window.setTimeout(callback, 1000 / 60);
+                   };
+        })();
+
+        var canvas = document.getElementById('canvas'),
+            ctx = canvas.getContext('2d'),
+            cw = window.innerWidth,
+            ch = window.innerHeight,
+            fireworks = [],
+            particles = [],
+            hue = 120,
+            limiterTotal = 20,
+            limiterTick = 0,
+            timerTotal = 500,
+            timerTick = 0,
+            mousedown = false,
+            mx,
+            my;
+
+        canvas.width = cw;
+        canvas.height = ch;
+
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function calculateDistance(p1x, p1y, p2x, p2y) {
+            var xDistance = p1x - p2x,
+                yDistance = p1y - p2y;
+            return Math.sqrt(Math.pow(xDistance, 2) + Math.pow(yDistance, 2));
+        }
+
+        function Firework(sx, sy, tx, ty) {
+            this.x = sx;
+            this.y = sy;
+            this.sx = sx;
+            this.sy = sy;
+            this.tx = tx;
+            this.ty = ty;
+            this.distanceToTarget = calculateDistance(sx, sy, tx, ty);
+            this.distanceTraveled = 0;
+            this.coordinates = [];
+            this.coordinateCount = 3;
+            while (this.coordinateCount--) {
+                this.coordinates.push([this.x, this.y]);
+            }
+            this.angle = Math.atan2(ty - sy, tx - sx);
+            this.speed = 2;
+            this.acceleration = 1.05;
+            this.brightness = random(50, 70);
+            this.targetRadius = 1;
+        }
+
+        Firework.prototype.update = function(index) {
+            this.coordinates.pop();
+            this.coordinates.unshift([this.x, this.y]);
+            if (this.targetRadius < 8) {
+                this.targetRadius += 0.3;
+            } else {
+                this.targetRadius = 1;
+            }
+            this.speed *= this.acceleration;
+            var vx = Math.cos(this.angle) * this.speed,
+                vy = Math.sin(this.angle) * this.speed;
+            this.distanceTraveled = calculateDistance(this.sx, this.sy, this.x + vx, this.y + vy);
+            if (this.distanceTraveled >= this.distanceToTarget) {
+                createParticles(this.tx, this.ty);
+                fireworks.splice(index, 1);
+            } else {
+                this.x += vx;
+                this.y += vy;
+            }
+        };
+
+        Firework.prototype.draw = function() {
+            ctx.beginPath();
+            ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+            ctx.lineTo(this.x, this.y);
+            ctx.strokeStyle = 'hsl(' + hue + ', 100%, ' + this.brightness + '%)';
+            ctx.stroke();
+        };
+
+        function Particle(x, y) {
+            this.x = x;
+            this.y = y;
+            this.coordinates = [];
+            this.coordinateCount = 5;
+            while (this.coordinateCount--) {
+                this.coordinates.push([this.x, this.y]);
+            }
+            this.angle = random(0, Math.PI * 2);
+            this.speed = random(1, 10);
+            this.friction = 0.95;
+            this.gravity = 0.6;
+            this.hue = random(hue - 20, hue + 20);
+            this.brightness = random(50, 80);
+            this.alpha = 1;
+            this.decay = random(0.0075, 0.009);
+        }
+
+        Particle.prototype.update = function(index) {
+            this.coordinates.pop();
+            this.coordinates.unshift([this.x, this.y]);
+            this.speed *= this.friction;
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed + this.gravity;
+            this.alpha -= this.decay;
+            if (this.alpha <= this.decay) {
+                particles.splice(index, 1);
+            }
+        };
+
+        Particle.prototype.draw = function() {
+            ctx.beginPath();
+            ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+            ctx.lineTo(this.x, this.y);
+            ctx.strokeStyle = 'hsla(' + this.hue + ', 100%, ' + this.brightness + '%, ' + this.alpha + ')';
+            ctx.stroke();
+        };
+
+        function createParticles(x, y) {
+            var particleCount = 20;
+            while (particleCount--) {
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function loop() {
+            requestAnimFrame(loop);
+            hue += 0.5;
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.globalCompositeOperation = 'lighter';
+            for (var i = fireworks.length - 1; i >= 0; i--) {
+                fireworks[i].draw();
+                fireworks[i].update(i);
+            }
+            for (var i = particles.length - 1; i >= 0; i--) {
+                particles[i].draw();
+                particles[i].update(i);
+            }
+            if (timerTick >= timerTotal) {
+                timerTick = 0;
+            } else {
+                timerTick++;
+            }
+            if (limiterTick >= limiterTotal) {
+                if (mousedown) {
+                    fireworks.push(new Firework(cw / 2, ch, mx, my));
+                    limiterTick = 0;
+                }
+            } else {
+                limiterTick++;
+            }
+        }
+
+        canvas.addEventListener('mousemove', function(e) {
+            mx = e.pageX - canvas.offsetLeft;
+            my = e.pageY - canvas.offsetTop;
+        });
+
+        canvas.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            mousedown = true;
+        });
+
+        canvas.addEventListener('mouseup', function(e) {
+            e.preventDefault();
+            mousedown = false;
+        });
+
+        window.onload = loop;
+      let guestList = [];
+      let SoGiaiNhat = 1,
+        SoGiaiNhi = 5,
+        SoGiaiBa = 10,
+        SoGiaiKhuyenKhich = 20;
+      let resultsGiaiNhat = [],
+        resultsGiaiNhi = [],
+        resultsGiaiBa = [],
+        resultsGiaiKhuyenKhich = [];
+      let intervalId;
+
+      function toggleSettingsMenu() {
+        const menu = document.getElementById("settings-menu");
+        menu.style.display = menu.style.display === "block" ? "none" : "block";
+      }
+
+      function applySettings() {
+        SoGiaiNhat =
+          parseInt(document.getElementById("giai-nhat-count").value) || 1;
+        SoGiaiNhi =
+          parseInt(document.getElementById("giai-nhi-count").value) || 5;
+        SoGiaiBa =
+          parseInt(document.getElementById("giai-ba-count").value) || 10;
+        SoGiaiKhuyenKhich =
+          parseInt(document.getElementById("giai-khuyen-khich-count").value) ||
+          20;
+        alert("Cập nhật thành công!");
+        toggleSettingsMenu();
+      }
+
+      function handleFile(input) {
+        const file = input.files[0];
+        if (!file) return alert("Chưa chọn file!");
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          guestList = jsonData
+            .map((row) => row[0]?.toString().trim())
+            .filter(Boolean);
+          document.getElementById(
+            "guest-number"
+          ).textContent = `Số khách mời: ${guestList.length}`;
+          alert("Import danh sách thành công!");
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      function showToast(message) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 3000);
+      }
+
+      function clearResults() {
+        document.getElementById("result-giai-nhat").innerHTML = "";
+        document.getElementById("result-giai-nhi").innerHTML = "";
+        document.getElementById("result-giai-ba").innerHTML = "";
+        document.getElementById("result-giai-khuyen-khich").innerHTML = "";
+      }
+
+      function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+      }
+
+      function displayRandomNames(resultDivId, availableNames) {
+        const resultDiv = document.getElementById(resultDivId);
+        intervalId = setInterval(() => {
+          shuffleArray(availableNames);
+          resultDiv.innerHTML = availableNames
+            .slice(0, 5)
+            .map((name) => `<p>${name}</p>`)
+            .join("");
+        }, 100);
+      }
+
+      function QuayGiai(soGiai, resultArray, resultDivId) {
+        clearResults(); // Xóa kết quả cũ trước khi hiển thị kết quả mới
+
+        if (resultArray.length >= soGiai)
+          return showToast("Đã quay đủ số lượng!");
+
+        let availableNames = guestList.filter(
+          (name) =>
+            !resultsGiaiNhat.includes(name) &&
+            !resultsGiaiNhi.includes(name) &&
+            !resultsGiaiBa.includes(name) &&
+            !resultsGiaiKhuyenKhich.includes(name)
+        );
+
+        if (availableNames.length < soGiai)
+          return showToast("Không đủ người để quay!");
+
+        displayRandomNames(resultDivId, availableNames);
+
+        setTimeout(() => {
+          clearInterval(intervalId); // Dừng hiệu ứng lộn xộn
+
+          const winners = [];
+          while (winners.length < soGiai) {
+            const randomIndex = Math.floor(
+              Math.random() * availableNames.length
+            );
+            const winner = availableNames.splice(randomIndex, 1)[0];
+            winners.push(winner);
+          }
+
+          resultArray.length = 0;
+          resultArray.push(...winners);
+          document.getElementById(resultDivId).innerHTML = winners
+            .map((name) => `<p>${name}</p>`)
+            .join("");
+        }, 4000); // Đợi 4 giây trước khi hiển thị kết quả
+      }
+
+      function QuayGiaiNhat() {
+        QuayGiai(SoGiaiNhat, resultsGiaiNhat, "result-giai-nhat");
+      }
+      function QuayGiaiNhi() {
+        QuayGiai(SoGiaiNhi, resultsGiaiNhi, "result-giai-nhi");
+      }
+      function QuayGiaiBa() {
+        QuayGiai(SoGiaiBa, resultsGiaiBa, "result-giai-ba");
+      }
+      function QuayGiaiKhuyenKhich() {
+        QuayGiai(
+          SoGiaiKhuyenKhich,
+          resultsGiaiKhuyenKhich,
+          "result-giai-khuyen-khich"
+        );
+      }
+    </script>
+  </body>
+</html>
